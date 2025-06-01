@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Settings</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f9fc;
+            padding: 2rem;
+        }
+
+        form {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+
+        select, input[type="text"], input[type="number"], input[type="range"], input[type="checkbox"] {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .slider-label {
+            margin-top: 0.5rem;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .toggle-switch {
+            display: inline-block;
+            position: relative;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            background-color: #ccc;
+            border-radius: 24px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            transition: 0.4s;
+        }
+
+        .slider::before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+        }
+
+        .toggle-switch input:checked + .slider {
+            background-color: #4caf50;
+        }
+
+        .toggle-switch input:checked + .slider::before {
+            transform: translateX(26px);
+        }
+
+        button {
+            margin-top: 2rem;
+            padding: 0.75rem;
+            background-color: #0077cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #005fa3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #message {
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <form id="llmForm">
+        <h2>LLM Settings ⚙️</h2>
+
+        <label for="llm_name">LLM Provider</label>
+        <select name="llm_name" id="llm_name" required>
+            <option value="">-- Select Provider --</option>
+            <option value="huggingface">HuggingFace</option>
+            <option value="google">Google</option>
+        </select>
+
+        <div id="hfOptions" class="hidden">
+            <label for="model_name">Model Name</label>
+            <select name="model_name" id="model_name">
+                <option value="">-- Select Model --</option>
+                <option value="tiiuae/falcon-7b">falcon-7b</option>
+                <option value="meta-llama/Llama-2-7b-hf">LLaMA 2 7B</option>
+            </select>
+
+            <label for="trust_remote_code">🛠️ Trust Remote Code
+                <input type="checkbox" name="trust_remote_code" id="trust_remote_code" />
+            </label>
+
+            <label for="do_sample">🎲 Do Sample</label>
+            <div class="toggle-switch">
+                <input type="checkbox" id="do_sample" name="do_sample">
+                <span class="slider"></span>
+            </div>
+
+            <label for="quantization">💾 Use Quantization</label>
+            <input type="checkbox" name="quantization" id="quantization" />
+
+            <label for="quantization_type">Quantization Type</label>
+            <select name="quantization_type" id="quantization_type">
+                <option value="">-- Select Type --</option>
+                <option value="4bit">4-bit</option>
+                <option value="8bit">8-bit</option>
+            </select>
+        </div>
+
+        <label for="max_new_tokens">Max New Tokens: <span id="maxTokensValue">50</span></label>
+        <input type="range" id="max_new_tokens" name="max_new_tokens" min="1" max="200" value="50">
+
+        <label for="temperature">Temperature: <span id="temperatureValue">1.0</span></label>
+        <input type="range" id="temperature" name="temperature" min="0.1" max="2.0" step="0.1" value="1.0">
+
+        <label for="top_p">Top-p: <span id="topPValue">0.9</span></label>
+        <input type="range" id="top_p" name="top_p" min="0.1" max="1.0" step="0.1" value="0.9">
+
+        <label for="top_k">Top-k: <span id="topKValue">40</span></label>
+        <input type="range" id="top_k" name="top_k" min="1" max="100" value="40">
+
+        <button type="submit">Save Settings</button>
+        <div id="loading" class="hidden">⏳ Saving...</div>
+        <div id="message"></div>
+    </form>
+<script>
+        const form = document.getElementById('llmForm');
+        const loading = document.getElementById('loading');
+        const message = document.getElementById('message');
+        const quantization = document.getElementById('quantization');
+        const quantizationType = document.getElementById('quantization_type');
+        const hfOptions = document.getElementById('hfOptions');
+        const llmSelect = document.getElementById('llm_name');
+    
+        function bindSlider(sliderId, labelId) {
+            const slider = document.getElementById(sliderId);
+            const label = document.getElementById(labelId);
+            slider.addEventListener('input', () => {
+                label.textContent = slider.value;
+            });
+        }
+    
+        bindSlider("max_new_tokens", "maxTokensValue");
+        bindSlider("temperature", "temperatureValue");
+        bindSlider("top_p", "topPValue");
+        bindSlider("top_k", "topKValue");
+    
+        llmSelect.addEventListener('change', () => {
+            hfOptions.classList.toggle('hidden', llmSelect.value !== 'huggingface');
+        });
+    
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            message.textContent = "";
+            loading.classList.remove('hidden');
+    
+            const formData = new FormData(form);
+    
+            const payload = {
+                llm_name: formData.get('llm_name'),
+                model_name: formData.get('model_name'),
+                max_new_tokens: parseInt(formData.get('max_new_tokens')),
+                temperature: parseFloat(formData.get('temperature')),
+                top_p: parseFloat(formData.get('top_p')),
+                top_k: parseInt(formData.get('top_k')),
+                trust_remote_code: formData.get('trust_remote_code') === 'on',
+                do_sample: document.getElementById('do_sample').checked,
+                quantization: quantization.checked,
+                quantization_type: quantization.checked ? formData.get('quantization_type') : null
+            };
+    
+            try {
+                const res = await fetch('/api/llmsettings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+    
+                const result = await res.json();
+                loading.classList.add('hidden');
+                message.textContent = result.message || result.error || "⚠️ Unexpected response";
+                message.style.color = res.ok ? 'green' : 'red';
+            } catch (err) {
+                loading.classList.add('hidden');
+                message.textContent = "❌ Error: " + err.message;
+                message.style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>
